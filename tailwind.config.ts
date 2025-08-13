@@ -52,6 +52,12 @@ export default {
 					DEFAULT: 'hsl(var(--card))',
 					foreground: 'hsl(var(--card-foreground))'
 				},
+				game: {
+					danger: 'hsl(var(--game-danger))',
+					warning: 'hsl(var(--game-warning))',
+					success: 'hsl(var(--game-success))',
+					info: 'hsl(var(--game-info))'
+				},
 				sidebar: {
 					DEFAULT: 'hsl(var(--sidebar-background))',
 					foreground: 'hsl(var(--sidebar-foreground))',
