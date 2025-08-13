@@ -31,6 +31,14 @@ interface Particle {
   color: string;
 }
 
+interface FloatingScore {
+  x: number;
+  y: number;
+  text: string;
+  life: number;
+  color: string;
+}
+
 interface GameCanvasProps {
   gameState: {
     running: boolean;
@@ -65,10 +73,12 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     ideas: [] as Idea[],
     bots: [] as Bot[],
     particles: [] as Particle[],
+    floatingScores: [] as FloatingScore[],
     frame: 0,
     combo: 0,
     overdriveTimer: 0,
-    pointer: { x: 0, y: 0 }
+    pointer: { x: 0, y: 0 },
+    gameCompleted: false
   });
 
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -110,8 +120,8 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    // Calculate level based on score (every 15 points = new level)
-    const currentLevel = Math.floor(gameState.score / 15) + 1;
+    // Calculate level based on score (every 3 points = new level)
+    const currentLevel = Math.floor(gameState.score / 3) + 1;
 
     const edge = Math.floor(rng(0, 4));
     let x: number, y: number;
@@ -137,6 +147,17 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       vx: rng(-1.3, 1.3),
       vy: rng(-1.3, 1.3),
       life: 30,
+      color
+    });
+  }, []);
+
+  const addFloatingScore = useCallback((x: number, y: number, score: number, isStreakBonus: boolean = false) => {
+    const text = isStreakBonus ? `+${score.toFixed(1)} STREAK!` : `+${score.toFixed(1)}`;
+    const color = isStreakBonus ? '#ffd700' : '#00ff88';
+    gameDataRef.current.floatingScores.push({
+      x, y,
+      text,
+      life: 60,
       color
     });
   }, []);
@@ -171,7 +192,18 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
         if (bot.hp <= 0) {
           gameDataRef.current.bots.splice(i, 1);
           gameDataRef.current.combo = clamp(gameDataRef.current.combo + 1, 0, 100);
-          onGameStateUpdate({ score: gameState.score + 10 + gameDataRef.current.combo });
+          
+          // Base score 0.5 + 25% bonus for streaks
+          const baseScore = 0.5;
+          const streakBonus = gameDataRef.current.combo > 1 ? baseScore * 0.25 : 0;
+          const totalScore = baseScore + streakBonus;
+          
+          addFloatingScore(x, y, baseScore, false);
+          if (streakBonus > 0) {
+            addFloatingScore(x, y - 20, streakBonus, true);
+          }
+          
+          onGameStateUpdate({ score: gameState.score + totalScore });
           beep(820, 0.05, 'sawtooth', 0.02);
         } else {
           beep(520, 0.04, 'square', 0.02);
@@ -184,7 +216,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     if (!hit) {
       gameDataRef.current.combo = 0;
     }
-  }, [gameState, onGameStateUpdate, beep, addParticle]);
+  }, [gameState, onGameStateUpdate, beep, addParticle, addFloatingScore]);
 
   const handleMouseMove = useCallback((event: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
@@ -316,6 +348,25 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       }
     }
 
+    // Draw floating scores
+    for (let i = gameDataRef.current.floatingScores.length - 1; i >= 0; i--) {
+      const fs = gameDataRef.current.floatingScores[i];
+      fs.y -= 1.5; // Float upward
+      fs.life -= 1;
+      
+      if (fs.life <= 0) {
+        gameDataRef.current.floatingScores.splice(i, 1);
+      } else {
+        ctx.globalAlpha = fs.life / 60;
+        ctx.fillStyle = fs.color;
+        ctx.font = 'bold 16px system-ui';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(fs.text, fs.x, fs.y);
+        ctx.globalAlpha = 1;
+      }
+    }
+
     // Draw crosshair
     const { x: px, y: py } = gameDataRef.current.pointer;
     ctx.strokeStyle = 'rgba(255,255,255,0.8)';
@@ -339,25 +390,35 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     const data = gameDataRef.current;
     data.frame++;
 
-    // Calculate current level based on score
-    const currentLevel = Math.floor(gameState.score / 15) + 1;
+    // Calculate current level based on score (every 3 points = new level)
+    const currentLevel = Math.floor(gameState.score / 3) + 1;
     
     // Update wave display to show current level
     if (currentLevel !== gameState.wave) {
       onGameStateUpdate({ wave: currentLevel });
     }
 
-    // Spawn enemies - start slower, gradually increase frequency
-    const baseSpawnRate = 90; // Much slower initial spawn rate
-    const minSpawnRate = 20; // Minimum spawn rate at high levels
-    const spawnRate = Math.max(minSpawnRate, baseSpawnRate - (currentLevel - 1) * 5);
+    // Check for level 3 completion
+    if (currentLevel >= 4 && !data.gameCompleted) {
+      data.gameCompleted = true;
+      // Show completion message instead of game over
+      setTimeout(() => {
+        onGameOver();
+      }, 1000);
+      return;
+    }
+
+    // Spawn enemies - much slower, fewer bots
+    const baseSpawnRate = 150; // Much slower initial spawn rate
+    const minSpawnRate = 80; // Minimum spawn rate at high levels
+    const spawnRate = Math.max(minSpawnRate, baseSpawnRate - (currentLevel - 1) * 15);
     
     if (data.frame % spawnRate === 0) {
       spawnBot();
     }
     
     // Spawn ideas - slower rate, increases slightly with level
-    const ideaSpawnRate = Math.max(120, 300 - (currentLevel - 1) * 10);
+    const ideaSpawnRate = Math.max(180, 400 - (currentLevel - 1) * 20);
     if (data.frame % ideaSpawnRate === 0) {
       spawnIdea();
     }
@@ -436,7 +497,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     });
 
     // Random idea lock - less frequent at start, more frequent at higher levels
-    const lockChance = 360 - (Math.floor(gameState.score / 15) * 20); // Start at 360 frames, decrease by 20 each level
+    const lockChance = 360 - (Math.floor(gameState.score / 3) * 20); // Start at 360 frames, decrease by 20 each level
     if (data.frame % Math.max(lockChance, 120) === 0 && data.ideas.length) {
       const randomIdea = data.ideas[Math.floor(rng(0, data.ideas.length))];
       randomIdea.lock = 100;
@@ -486,9 +547,11 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       gameDataRef.current.ideas = [];
       gameDataRef.current.bots = [];
       gameDataRef.current.particles = [];
+      gameDataRef.current.floatingScores = [];
       gameDataRef.current.frame = 0;
       gameDataRef.current.combo = 0;
       gameDataRef.current.overdriveTimer = 0;
+      gameDataRef.current.gameCompleted = false;
       
       // Spawn initial ideas and bots
       for (let i = 0; i < 4; i++) {

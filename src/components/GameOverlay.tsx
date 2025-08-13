@@ -72,10 +72,10 @@ export const GameOverlay: React.FC<GameOverlayProps> = ({
         ) : (
           <>
             <h1 className="text-3xl font-bold mb-2 text-foreground">
-              {score > 1000 ? 'Well Played!' : 'All Ideas Stolen 💔'}
+              {wave >= 4 ? 'Mission Complete! 🛡️' : score > 1000 ? 'Well Played!' : 'All Ideas Stolen 💔'}
             </h1>
             <p className="text-muted-foreground mb-6">
-              Your on-chain shield held the line.
+              {wave >= 4 ? "You've successfully protected your data! The AI bots have been neutralized." : "Your on-chain shield held the line."}
             </p>
             <p className="text-xl font-bold text-primary mb-6">
               Score: {score.toLocaleString()} • Level: {wave}
