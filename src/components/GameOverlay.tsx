@@ -78,7 +78,7 @@ export const GameOverlay: React.FC<GameOverlayProps> = ({
               Your on-chain shield held the line.
             </p>
             <p className="text-xl font-bold text-primary mb-6">
-              Score: {score.toLocaleString()} • Wave: {wave}
+              Score: {score.toLocaleString()} • Level: {wave}
             </p>
             
             <div className="flex flex-col sm:flex-row gap-3 items-center justify-center mb-4">

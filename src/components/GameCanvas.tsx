@@ -110,6 +110,9 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     const canvas = canvasRef.current;
     if (!canvas) return;
 
+    // Calculate level based on score (every 15 points = new level)
+    const currentLevel = Math.floor(gameState.score / 15) + 1;
+
     const edge = Math.floor(rng(0, 4));
     let x: number, y: number;
     
@@ -118,10 +121,15 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     else if (edge === 2) { x = rng(0, canvas.width); y = canvas.height + 20; }
     else { x = -20; y = rng(0, canvas.height); }
 
-    const speed = rng(0.6, 1.2) + gameState.wave * 0.08;
-    const hp = 1 + Math.floor(gameState.wave / 3);
+    // Much slower initial speed, gradual increase based on level
+    const baseSpeed = 0.3; // Start much slower
+    const speedIncrease = 0.1; // Smaller increments
+    const speed = baseSpeed + (currentLevel - 1) * speedIncrease;
+    
+    // HP increases every 3 levels instead of every 3 waves
+    const hp = 1 + Math.floor((currentLevel - 1) / 3);
     gameDataRef.current.bots.push({ x, y, vx: 0, vy: 0, speed, r: 14, hp });
-  }, [gameState.wave]);
+  }, [gameState.score]);
 
   const addParticle = useCallback((x: number, y: number, color: string) => {
     gameDataRef.current.particles.push({
@@ -331,22 +339,32 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     const data = gameDataRef.current;
     data.frame++;
 
-    // Spawn enemies and ideas
-    if (data.frame % Math.max(30 - gameState.wave * 2, 8) === 0) {
+    // Calculate current level based on score
+    const currentLevel = Math.floor(gameState.score / 15) + 1;
+    
+    // Update wave display to show current level
+    if (currentLevel !== gameState.wave) {
+      onGameStateUpdate({ wave: currentLevel });
+    }
+
+    // Spawn enemies - start slower, gradually increase frequency
+    const baseSpawnRate = 90; // Much slower initial spawn rate
+    const minSpawnRate = 20; // Minimum spawn rate at high levels
+    const spawnRate = Math.max(minSpawnRate, baseSpawnRate - (currentLevel - 1) * 5);
+    
+    if (data.frame % spawnRate === 0) {
       spawnBot();
     }
     
-    if (data.frame % Math.max(180 - gameState.wave * 6, 80) === 0) {
+    // Spawn ideas - slower rate, increases slightly with level
+    const ideaSpawnRate = Math.max(120, 300 - (currentLevel - 1) * 10);
+    if (data.frame % ideaSpawnRate === 0) {
       spawnIdea();
-    }
-    
-    if (data.frame % 600 === 0) {
-      onGameStateUpdate({ wave: gameState.wave + 1 });
     }
 
     // Update shield and overdrive
     if (!gameState.overdrive) {
-      onGameStateUpdate({ shield: clamp(gameState.shield + 0.5, 0, 100) });
+      onGameStateUpdate({ shield: clamp(gameState.shield + 0.3, 0, 100) }); // Slower shield regeneration
     } else {
       data.overdriveTimer -= 16;
       if (data.overdriveTimer <= 0) {
@@ -417,8 +435,9 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       }
     });
 
-    // Random idea lock
-    if (data.frame % 240 === 0 && data.ideas.length) {
+    // Random idea lock - less frequent at start, more frequent at higher levels
+    const lockChance = 360 - (Math.floor(gameState.score / 15) * 20); // Start at 360 frames, decrease by 20 each level
+    if (data.frame % Math.max(lockChance, 120) === 0 && data.ideas.length) {
       const randomIdea = data.ideas[Math.floor(rng(0, data.ideas.length))];
       randomIdea.lock = 100;
     }

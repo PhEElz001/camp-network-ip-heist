@@ -14,7 +14,7 @@ export const GameHUD: React.FC<GameHUDProps> = ({ score, wave, lives, shield }) 
         Score: {score.toLocaleString()}
       </div>
       <div className="bg-card/80 border border-border backdrop-blur-sm px-3 py-2 rounded-xl font-bold text-foreground">
-        Wave: {wave}
+        Level: {wave}
       </div>
       <div className="bg-card/80 border border-border backdrop-blur-sm px-3 py-2 rounded-xl font-bold text-foreground">
         Ideas Safe: {lives}
