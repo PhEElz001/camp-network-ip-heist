@@ -131,14 +131,14 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     else if (edge === 2) { x = rng(0, canvas.width); y = canvas.height + 20; }
     else { x = -20; y = rng(0, canvas.height); }
 
-    // Much slower initial speed, gradual increase based on level
-    const baseSpeed = 0.3; // Start much slower
-    const speedIncrease = 0.1; // Smaller increments
+    // Even slower initial speed for PC
+    const baseSpeed = 0.15; // Much slower for PC
+    const speedIncrease = 0.05; // Even smaller increments
     const speed = baseSpeed + (currentLevel - 1) * speedIncrease;
     
-    // HP increases every 3 levels instead of every 3 waves
+    // HP increases every 3 levels
     const hp = 1 + Math.floor((currentLevel - 1) / 3);
-    gameDataRef.current.bots.push({ x, y, vx: 0, vy: 0, speed, r: 14, hp });
+    gameDataRef.current.bots.push({ x, y, vx: 0, vy: 0, speed, r: 16, hp });
   }, [gameState.score]);
 
   const addParticle = useCallback((x: number, y: number, color: string) => {
@@ -294,32 +294,38 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       }
     });
 
-    // Draw bots
+    // Draw bots as orange minions
     gameDataRef.current.bots.forEach(bot => {
-      drawGlow(ctx, bot.x, bot.y, 24, 'rgba(255,77,79,0.55)');
-      ctx.save();
-      ctx.translate(bot.x, bot.y);
-      const angle = Math.atan2(bot.vy, bot.vx);
-      ctx.rotate(angle);
+      drawGlow(ctx, bot.x, bot.y, 26, 'rgba(255,122,0,0.6)');
       
-      ctx.fillStyle = '#ff4d4f';
+      // Orange minion body
+      ctx.fillStyle = '#ff7a00';
       ctx.beginPath();
-      ctx.moveTo(-10, -10);
-      ctx.lineTo(14, 0);
-      ctx.lineTo(-10, 10);
-      ctx.closePath();
+      ctx.arc(bot.x, bot.y, bot.r, 0, Math.PI * 2);
       ctx.fill();
       
-      ctx.fillStyle = '#fff';
+      // Darker orange border
+      ctx.strokeStyle = '#e66900';
+      ctx.lineWidth = 2;
       ctx.beginPath();
-      ctx.arc(4, 0, 3, 0, Math.PI * 2);
+      ctx.arc(bot.x, bot.y, bot.r, 0, Math.PI * 2);
+      ctx.stroke();
+      
+      // Simple evil eyes
+      ctx.fillStyle = '#ff0000';
+      ctx.beginPath();
+      ctx.arc(bot.x - 4, bot.y - 2, 2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(bot.x + 4, bot.y - 2, 2, 0, Math.PI * 2);
       ctx.fill();
       
-      ctx.fillStyle = '#000';
+      // Evil mouth
+      ctx.strokeStyle = '#cc0000';
+      ctx.lineWidth = 2;
       ctx.beginPath();
-      ctx.arc(4, 0, 1.5, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.restore();
+      ctx.arc(bot.x, bot.y + 4, 4, 0, Math.PI);
+      ctx.stroke();
       
       if (bot.hp > 1) {
         const maxHp = 1 + Math.floor(gameState.wave / 3);
@@ -408,13 +414,17 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       return;
     }
 
-    // Spawn enemies - much slower, fewer bots
-    const baseSpawnRate = 150; // Much slower initial spawn rate
-    const minSpawnRate = 80; // Minimum spawn rate at high levels
-    const spawnRate = Math.max(minSpawnRate, baseSpawnRate - (currentLevel - 1) * 15);
+    // Progressive bot spawning: level 1 = 1 bot, level 2 = 2 bots, etc.
+    const botsToSpawn = Math.min(currentLevel, 5); // Cap at 5 bots max
+    const baseSpawnRate = 200; // Even slower initial spawn rate for PC
+    const minSpawnRate = 120; // Minimum spawn rate at high levels
+    const spawnRate = Math.max(minSpawnRate, baseSpawnRate - (currentLevel - 1) * 10);
     
     if (data.frame % spawnRate === 0) {
-      spawnBot();
+      // Only spawn if we have fewer bots than the level allows
+      if (data.bots.length < botsToSpawn) {
+        spawnBot();
+      }
     }
     
     // Spawn ideas - slower rate, increases slightly with level
