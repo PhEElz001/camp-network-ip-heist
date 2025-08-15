@@ -1,6 +1,6 @@
 import React from 'react';
 import { Button } from './ui/button';
-import campLogo from '@/assets/camp-logo.png';
+import campLogo from '/lovable-uploads/a1339228-02b1-460c-b4d5-6a5a0f27d5c9.png';
 
 interface GameOverlayProps {
   type: 'start' | 'gameOver';
