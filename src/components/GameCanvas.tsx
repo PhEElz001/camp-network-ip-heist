@@ -131,9 +131,9 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     else if (edge === 2) { x = rng(0, canvas.width); y = canvas.height + 20; }
     else { x = -20; y = rng(0, canvas.height); }
 
-    // Even slower initial speed for PC
-    const baseSpeed = 0.15; // Much slower for PC
-    const speedIncrease = 0.05; // Even smaller increments
+    // Very slow initial speed for PC
+    const baseSpeed = 0.08; // Much slower for PC
+    const speedIncrease = 0.02; // Very small increments
     const speed = baseSpeed + (currentLevel - 1) * speedIncrease;
     
     // HP increases every 3 levels
